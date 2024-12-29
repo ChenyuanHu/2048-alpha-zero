@@ -5,6 +5,7 @@ from torch.utils.data import Dataset, DataLoader
 import numpy as np
 from collections import deque
 import os
+import shutil
 from tqdm import tqdm
 import logging
 import multiprocessing as mp
@@ -182,8 +183,8 @@ def main():
     optimizer = optim.Adam(model.parameters(), lr=0.002, weight_decay=1e-4)
     
     # 加载检查点（如果存在）
-    if os.path.exists('checkpoint.pt'):
-        checkpoint = torch.load('checkpoint.pt')
+    if os.path.exists('checkpoint_latest.pt'):
+        checkpoint = torch.load('checkpoint_latest.pt')
         model.load_state_dict(checkpoint['model_state_dict'])
         optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
         start_iteration = checkpoint['iteration']
@@ -269,16 +270,16 @@ def main():
             logging.info(f"Policy loss = {policy_loss:.4f}, Value loss = {value_loss:.4f}")
             
             # 保存检查点
-            if (iteration + 1) % 10 == 0:
-                save_dict = {
-                    'iteration': iteration + 1,
-                    'model_state_dict': model.state_dict(),
-                    'optimizer_state_dict': optimizer.state_dict(),
-                }
-                if device.type == 'cuda':
-                    save_dict['scaler_state_dict'] = scaler.state_dict()
-                torch.save(save_dict, 'checkpoint.pt')
-                logging.info(f"Saved checkpoint at iteration {iteration + 1}")
+            save_dict = {
+                'iteration': iteration + 1,
+                'model_state_dict': model.state_dict(),
+                'optimizer_state_dict': optimizer.state_dict(),
+            }
+            if device.type == 'cuda':
+                save_dict['scaler_state_dict'] = scaler.state_dict()
+            torch.save(save_dict, 'checkpoint_latest.pt')
+            shutil.copy('checkpoint_latest.pt', f'checkpoint_iter{iteration + 1}.pt')
+            logging.info(f"Saved checkpoint at iteration {iteration + 1}")
     
     except KeyboardInterrupt:
         logging.info("训练被用户中断")
