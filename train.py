@@ -183,8 +183,8 @@ def main():
     optimizer = optim.Adam(model.parameters(), lr=0.002, weight_decay=1e-4)
     
     # 加载检查点（如果存在）
-    if os.path.exists('checkpoint_latest.pt'):
-        checkpoint = torch.load('checkpoint_latest.pt')
+    if os.path.exists('checkpoints/checkpoint_latest.pt'):
+        checkpoint = torch.load('checkpoints/checkpoint_latest.pt')
         model.load_state_dict(checkpoint['model_state_dict'])
         optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
         start_iteration = checkpoint['iteration']
@@ -277,8 +277,9 @@ def main():
             }
             if device.type == 'cuda':
                 save_dict['scaler_state_dict'] = scaler.state_dict()
-            torch.save(save_dict, 'checkpoint_latest.pt')
-            shutil.copy('checkpoint_latest.pt', f'checkpoint_iter{iteration + 1}.pt')
+            os.makedirs('checkpoints', exist_ok=True)
+            torch.save(save_dict, 'checkpoints/checkpoint_latest.pt')
+            shutil.copy('checkpoints/checkpoint_latest.pt', f'checkpoints/checkpoint_iter{iteration + 1}.pt')
             logging.info(f"Saved checkpoint at iteration {iteration + 1}")
     
     except KeyboardInterrupt:
