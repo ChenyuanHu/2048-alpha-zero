@@ -5,15 +5,26 @@ import torch
 import os
 
 class MCTSNode:
-    def __init__(self, game_state, parent=None, parent_action=None):
+    def __init__(self, game_state, parent, parent_action, model):
+        self.model = model
         self.game_state = game_state
+        self.available_moves = game_state.get_available_moves()
         self.parent = parent
         self.parent_action = parent_action
         self.children = {}
         self.number_of_visits = 0
         self.value_sum = 0
         self.prior_probability = 0
-        self.untried_actions = game_state.get_available_moves()
+        self.untried_actions = self.available_moves.copy()
+        if self.available_moves == []:
+            # 终局状态直接使用实际分数
+            self.value = self.game_state.get_score() / 20000  # 归一化分数
+        else:
+            # 模型预测的策略和价值，策略是当前state下会走4个方向的概率，价值是当前局面的价值
+            self.policy, self.value = self.model.predict(self.game_state.get_state())
+            tmp = np.zeros(4)
+            tmp[self.available_moves] = self.policy[self.available_moves]
+            self.policy = tmp / tmp.sum()
         
     def select_child(self, c_puct=1.0):
         # AlphaZero的UCB变体，考虑先验概率
@@ -24,7 +35,7 @@ class MCTSNode:
         return s[0], s[1]
     
     def expand(self, action, game_state, prior_probability):
-        node = MCTSNode(game_state=game_state, parent=self, parent_action=action)
+        node = MCTSNode(game_state=game_state, parent=self, parent_action=action, model=self.model)
         node.prior_probability = prior_probability
         self.untried_actions.remove(action)
         self.children[action] = node
@@ -44,49 +55,39 @@ class MCTS:
         self.c_puct = c_puct
         
     def get_action_probs(self, game_state, temperature=1.0):
-        root = MCTSNode(game_state=game_state)
+        root = MCTSNode(game_state=game_state.clone(), parent=None, parent_action=None, model=self.model)
         
         for _ in range(self.num_simulations):
             node = root
-            state = game_state.clone()
             
             # Selection
             while node.untried_actions == [] and node.children != {}:
                 action, node = node.select_child(self.c_puct)
-                state.move(action)
             
             # Expansion
+            # 如果还能够展开，如果无法展开，则node就为终局节点
             if node.untried_actions != []:
-                # 获取神经网络的预测
-                policy, value = self.model.predict(state.board)
-                
-                # 只考虑合法动作的概率
-                legal_moves = state.get_available_moves()
-                legal_probs = np.zeros(4)
-                legal_probs[legal_moves] = policy[legal_moves]
-                if legal_probs.sum() > 0:
-                    legal_probs /= legal_probs.sum()
-                
                 # 根据策略网络的概率选择动作
-                untried_probs = legal_probs[node.untried_actions]
+                untried_probs = np.zeros(4)
+                untried_probs[node.untried_actions] = node.policy[node.untried_actions]
                 if untried_probs.sum() > 0:
                     untried_probs = untried_probs / untried_probs.sum()  # 重新归一化
                 else:
                     # 如果所有概率都为0，使用均匀分布
-                    untried_probs = np.ones(len(node.untried_actions)) / len(node.untried_actions)
-                action = np.random.choice(node.untried_actions, p=untried_probs)
-                next_state = state.clone()
+                    untried_probs = np.ones(len(untried_probs)) / len(untried_probs)
+
+                action = np.random.choice(np.arange(4), p=untried_probs)
+
+                next_state = node.game_state.clone()
                 next_state.move(action)
-                node = node.expand(action, next_state, legal_probs[action])
-            else:
-                # 终局状态直接使用实际分数
-                value = state.get_score() / 20000  # 归一化分数
+                node = node.expand(action, next_state, node.policy[action])
             
+            value = node.value
             # Backup
             while node is not None:
                 node.update(value)
                 node = node.parent
-        
+
         # 计算访问次数的概率分布
         visits = np.array([child.number_of_visits for child in root.children.values()])
         actions = np.array(list(root.children.keys()))
