@@ -159,10 +159,12 @@ def main():
 
     logging.info("Starting training")
     # 训练参数
-    num_iterations = 1000
-    num_episodes = 20
-    batch_size = 512
-    num_simulations = 400
+    num_iterations = 1000    # 迭代次数, 包含Self-play的次数
+    num_episodes = 20        # 每次迭代进行20次Self-play
+    memory_capacity = 200000 # memory的容量
+    num_batches = 100        # 每次迭代从memory中取数据进行训练的次数
+    batch_size = 512         # 每次训练从memory中取batch size的数据进行训练
+    num_simulations = 400    # MCTS的模拟次数
     num_workers = min(mp.cpu_count() - 2, 24)  # 留出2个核心给系统和训练进程
     
     # 设置设备和性能优化
@@ -195,7 +197,7 @@ def main():
         start_iteration = 0
     
     # 创建记忆库和并行自我对弈工作器
-    memory = GameMemory(capacity=200000)
+    memory = GameMemory(capacity=memory_capacity)
     parallel_self_play = ParallelSelfPlay(model, num_workers, device, num_simulations)
     
     try:
@@ -224,7 +226,6 @@ def main():
             model.train()  # 切换到训练模式
             policy_loss = 0
             value_loss = 0
-            num_batches = 100
             
             # 使用自动混合精度训练
             for _ in range(num_batches):
