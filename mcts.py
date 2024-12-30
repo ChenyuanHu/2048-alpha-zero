@@ -107,7 +107,8 @@ def main():
 
     # 加载检查点（如果存在）
     if os.path.exists('checkpoints/checkpoint_latest.pt'):
-        checkpoint = torch.load('checkpoints/checkpoint_latest.pt', weights_only=True)
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        checkpoint = torch.load('checkpoints/checkpoint_latest.pt', weights_only=True, map_location=device)
         model.load_state_dict(checkpoint['model_state_dict'])
         print("Model loaded from checkpoint")
     

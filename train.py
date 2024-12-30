@@ -184,7 +184,7 @@ def main():
     
     # 加载检查点（如果存在）
     if os.path.exists('checkpoints/checkpoint_latest.pt'):
-        checkpoint = torch.load('checkpoints/checkpoint_latest.pt')
+        checkpoint = torch.load('checkpoints/checkpoint_latest.pt', weights_only=True, map_location=device)
         model.load_state_dict(checkpoint['model_state_dict'])
         optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
         start_iteration = checkpoint['iteration']
