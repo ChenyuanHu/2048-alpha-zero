@@ -218,7 +218,7 @@ def main():
             # 记录分数
             avg_score = np.mean(scores)
             max_score = np.max(scores)
-            logging.info(f"Iteration {iteration}: Avg score = {avg_score:.0f}, Max score = {max_score:.0f}")
+            logging.info(f"Iteration {iteration}: Avg score = {avg_score:.0f}, Max score = {max_score:.0f}, Self-play actions = {len(states)}")
             
             # 训练网络
             model.train()  # 切换到训练模式
