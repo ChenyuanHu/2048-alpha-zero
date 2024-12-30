@@ -2,6 +2,7 @@ import numpy as np
 import math
 from game_2048 import Game2048
 import torch
+import os
 
 class MCTSNode:
     def __init__(self, game_state, parent=None, parent_action=None):
@@ -103,6 +104,12 @@ def main():
     model = AlphaZeroNet()
     if torch.cuda.is_available():
         model = model.cuda()
+
+    # 加载检查点（如果存在）
+    if os.path.exists('checkpoints/checkpoint_latest.pt'):
+        checkpoint = torch.load('checkpoints/checkpoint_latest.pt', weights_only=True)
+        model.load_state_dict(checkpoint['model_state_dict'])
+        print("Model loaded from checkpoint")
     
     game = Game2048()
     mcts = MCTS(model)
