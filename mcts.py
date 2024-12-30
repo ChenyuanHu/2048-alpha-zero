@@ -67,7 +67,14 @@ class MCTS:
                 if legal_probs.sum() > 0:
                     legal_probs /= legal_probs.sum()
                 
-                action = np.random.choice(node.untried_actions)
+                # 根据策略网络的概率选择动作
+                untried_probs = legal_probs[node.untried_actions]
+                if untried_probs.sum() > 0:
+                    untried_probs = untried_probs / untried_probs.sum()  # 重新归一化
+                else:
+                    # 如果所有概率都为0，使用均匀分布
+                    untried_probs = np.ones(len(node.untried_actions)) / len(node.untried_actions)
+                action = np.random.choice(node.untried_actions, p=untried_probs)
                 next_state = state.clone()
                 next_state.move(action)
                 node = node.expand(action, next_state, legal_probs[action])
