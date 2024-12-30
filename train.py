@@ -61,7 +61,7 @@ class GameMemory:
     def __len__(self):
         return len(self.memory)
 
-def play_game_worker(model_state_dict, device, num_simulations, c_puct):
+def play_game_worker(model_state_dict, device, num_simulations, c_puct, temperature):
     try:
         # 创建模型副本
         model = AlphaZeroNet().to(device)
@@ -77,7 +77,6 @@ def play_game_worker(model_state_dict, device, num_simulations, c_puct):
         
         while not game.is_game_over():
             state = game.board.copy()
-            temperature = 1.0 if len(states) < 10 else 0.1
             action, policy = mcts.get_action_probs(game, temperature)
             
             states.append(state)
@@ -93,12 +92,13 @@ def play_game_worker(model_state_dict, device, num_simulations, c_puct):
         return None
 
 class ParallelSelfPlay:
-    def __init__(self, model, num_workers, device, num_simulations, c_puct):
+    def __init__(self, model, num_workers, device, num_simulations, c_puct, temperature):
         self.model = model
         self.num_workers = num_workers
         self.device = device
         self.num_simulations = num_simulations
         self.c_puct = c_puct
+        self.temperature = temperature
         self.pool = None
         
     def init_pool(self):
@@ -121,7 +121,7 @@ class ParallelSelfPlay:
             self.init_pool()
             
             # 准备参数
-            args = [(state_dict, self.device, self.num_simulations, self.c_puct)] * num_games
+            args = [(state_dict, self.device, self.num_simulations, self.c_puct, self.temperature)] * num_games
             
             # 并行执行游戏
             results = []
@@ -170,6 +170,7 @@ def main():
     learning_rate = 0.002    # 学习率
     weight_decay = 1e-4      # 权重衰减
     c_puct = 1.0             # MCTS的c_puct参数
+    temperature = 1.0        # MCTS的temperature参数
 
     # 设置设备和性能优化
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -202,7 +203,7 @@ def main():
     
     # 创建记忆库和并行自我对弈工作器
     memory = GameMemory(capacity=memory_capacity)
-    parallel_self_play = ParallelSelfPlay(model, num_workers, device, num_simulations, c_puct)
+    parallel_self_play = ParallelSelfPlay(model, num_workers, device, num_simulations, c_puct, temperature)
     
     try:
         # 训练循环
