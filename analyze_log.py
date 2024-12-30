@@ -1,6 +1,38 @@
 import re
 import matplotlib.pyplot as plt
+import matplotlib as mpl
 import numpy as np
+from datetime import datetime
+import platform
+
+def set_platform_fonts():
+    """根据不同平台设置合适的字体"""
+    system = platform.system()
+    
+    # 常用的中文字体列表
+    if system == 'Windows':
+        font_list = ['Microsoft YaHei', 'SimHei', 'SimSun']
+    elif system == 'Darwin':  # macOS
+        font_list = ['Arial Unicode MS', 'Heiti TC', 'STHeiti']
+    else:  # Linux
+        font_list = ['WenQuanYi Micro Hei', 'Droid Sans Fallback', 'Noto Sans CJK']
+    
+    # 尝试设置字体
+    for font in font_list:
+        try:
+            plt.rcParams['font.sans-serif'] = [font]
+            # 测试字体是否可用
+            fig = plt.figure()
+            plt.text(0.5, 0.5, '测试中文', fontsize=12)
+            plt.close(fig)
+            print(f"使用字体: {font}")
+            break
+        except Exception:
+            continue
+    else:
+        print("警告：未能找到合适的中文字体，将使用系统默认字体")
+    
+    plt.rcParams['axes.unicode_minus'] = False  # 用来正常显示负号
 
 def parse_log(log_file):
     iterations = []
@@ -60,12 +92,8 @@ def plot_training_curves(iterations, avg_scores, max_scores, policy_losses, valu
         print("没有数据可供绘图")
         return
         
-    # 设置中文字体
-    try:
-        plt.rcParams['font.sans-serif'] = ['SimHei']
-        plt.rcParams['axes.unicode_minus'] = False
-    except:
-        print("警告：无法设置中文字体，将使用默认字体")
+    # 设置字体
+    set_platform_fonts()
         
     # 创建两个子图
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 10))
