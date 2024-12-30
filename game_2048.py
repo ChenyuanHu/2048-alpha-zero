@@ -36,35 +36,49 @@ class Game2048:
         original_board = self.board.copy()
         original_score = self.score
         
-        if direction in [0, 2]:  # up or down
-            self.board = np.rot90(self.board)
+        # 统一转换为向左移动的情况
+        if direction == 0:  # up
+            self.board = np.rot90(self.board, k=1)
+        elif direction == 1:  # right
+            self.board = np.rot90(self.board, k=2)
+        elif direction == 2:  # down
+            self.board = np.rot90(self.board, k=3)
         
+        # 对每一行进行处理
         for i in range(4):
-            line = self.board[i]
-            if direction in [1, 2]:  # right or down
-                line = line[::-1]
-                
-            # Remove zeros and merge identical numbers
-            line = line[line != 0]
-            for j in range(len(line) - 1, 0, -1):
-                if line[j] == line[j-1]:
-                    line[j] *= 2
-                    self.score += line[j]
-                    line[j-1] = 0
-            line = line[line != 0]
+            # 移除零并获取非零数字
+            non_zero = self.board[i][self.board[i] != 0]
             
-            # Pad with zeros
+            # 合并相同的数字
+            if len(non_zero) >= 2:
+                result = []
+                j = 0
+                while j < len(non_zero):
+                    if j + 1 < len(non_zero) and non_zero[j] == non_zero[j+1]:
+                        merged = non_zero[j] * 2
+                        self.score += merged
+                        result.append(merged)
+                        j += 2
+                    else:
+                        result.append(non_zero[j])
+                        j += 1
+                non_zero = np.array(result)
+            
+            # 用零填充到长度4
             new_line = np.zeros(4, dtype=int)
-            new_line[:len(line)] = line
-            
-            if direction in [1, 2]:  # right or down
-                new_line = new_line[::-1]
+            if len(non_zero) > 0:
+                new_line[:len(non_zero)] = non_zero
             self.board[i] = new_line
+        
+        # 旋转回原来的方向
+        if direction == 0:  # up
+            self.board = np.rot90(self.board, k=3)
+        elif direction == 1:  # right
+            self.board = np.rot90(self.board, k=2)
+        elif direction == 2:  # down
+            self.board = np.rot90(self.board, k=1)
             
-        if direction in [0, 2]:  # up or down
-            self.board = np.rot90(self.board, k=-1)
-            
-        # Check if the board changed
+        # 检查板子是否发生变化
         if not np.array_equal(original_board, self.board):
             self.add_new_tile()
             return True
