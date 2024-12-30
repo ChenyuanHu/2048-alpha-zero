@@ -61,7 +61,7 @@ class GameMemory:
     def __len__(self):
         return len(self.memory)
 
-def play_game_worker(model_state_dict, device, num_simulations):
+def play_game_worker(model_state_dict, device, num_simulations, c_puct):
     try:
         # 创建模型副本
         model = AlphaZeroNet().to(device)
@@ -69,7 +69,7 @@ def play_game_worker(model_state_dict, device, num_simulations):
         model.eval()
         
         # 创建MCTS实例
-        mcts = MCTS(model, num_simulations=num_simulations)
+        mcts = MCTS(model, num_simulations=num_simulations, c_puct=c_puct)
         
         # 玩一局游戏
         game = Game2048()
@@ -93,11 +93,12 @@ def play_game_worker(model_state_dict, device, num_simulations):
         return None
 
 class ParallelSelfPlay:
-    def __init__(self, model, num_workers, device, num_simulations):
+    def __init__(self, model, num_workers, device, num_simulations, c_puct):
         self.model = model
         self.num_workers = num_workers
         self.device = device
         self.num_simulations = num_simulations
+        self.c_puct = c_puct
         self.pool = None
         
     def init_pool(self):
@@ -120,7 +121,7 @@ class ParallelSelfPlay:
             self.init_pool()
             
             # 准备参数
-            args = [(state_dict, self.device, self.num_simulations)] * num_games
+            args = [(state_dict, self.device, self.num_simulations, self.c_puct)] * num_games
             
             # 并行执行游戏
             results = []
@@ -166,7 +167,10 @@ def main():
     batch_size = 512         # 每次训练从memory中取batch size的数据进行训练
     num_simulations = 400    # MCTS的模拟次数
     num_workers = min(mp.cpu_count() - 2, 24)  # 留出2个核心给系统和训练进程
-    
+    learning_rate = 0.002    # 学习率
+    weight_decay = 1e-4      # 权重衰减
+    c_puct = 1.0             # MCTS的c_puct参数
+
     # 设置设备和性能优化
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     if device.type == 'cuda':
@@ -182,7 +186,7 @@ def main():
     
     # 创建或加载模型
     model = AlphaZeroNet().to(device)
-    optimizer = optim.Adam(model.parameters(), lr=0.002, weight_decay=1e-4)
+    optimizer = optim.Adam(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
     
     # 加载检查点（如果存在）
     if os.path.exists('checkpoints/checkpoint_latest.pt'):
@@ -198,7 +202,7 @@ def main():
     
     # 创建记忆库和并行自我对弈工作器
     memory = GameMemory(capacity=memory_capacity)
-    parallel_self_play = ParallelSelfPlay(model, num_workers, device, num_simulations)
+    parallel_self_play = ParallelSelfPlay(model, num_workers, device, num_simulations, c_puct)
     
     try:
         # 训练循环
