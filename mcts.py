@@ -5,6 +5,9 @@ import torch
 import os
 import graphviz
 
+def normalize_score(score):
+    return score / 2000000
+
 class MCTSNode:
     def __init__(self, game_state, parent, parent_action, model):
         self.model = model
@@ -19,7 +22,7 @@ class MCTSNode:
         self.untried_actions = self.available_moves.copy()
         if self.available_moves == []:
             # 终局状态直接使用实际分数
-            self.value = self.game_state.get_score() / 20000  # 归一化分数
+            self.value = normalize_score(self.game_state.get_score())
         else:
             # 模型预测的策略和价值，策略是当前state下会走4个方向的概率，价值是当前局面的价值
             self.policy, self.value = self.model.predict(self.game_state.get_state())
@@ -74,7 +77,7 @@ class MCTSNode:
         return dot
 
 class MCTS:
-    def __init__(self, model, num_simulations=800, c_puct=1.0, visualization_dir='mcts_visualizations'):
+    def __init__(self, model, num_simulations=800, c_puct=1.0, visualization_dir=None):
         self.model = model
         self.num_simulations = num_simulations
         self.c_puct = c_puct
@@ -83,6 +86,9 @@ class MCTS:
         
     def visualize_tree(self, root_node, step):
         """将MCTS树可视化为图像文件"""
+        if self.visualization_dir is None:
+            return
+        
         dot = graphviz.Digraph(comment='MCTS Tree')
         dot.attr(rankdir='TB')
         
