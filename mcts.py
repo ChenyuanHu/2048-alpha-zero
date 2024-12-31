@@ -3,6 +3,7 @@ import math
 from game_2048 import Game2048
 import torch
 import os
+import graphviz
 
 class MCTSNode:
     def __init__(self, game_state, parent, parent_action, model):
@@ -48,11 +49,49 @@ class MCTSNode:
     def get_value(self):
         return self.value_sum / self.number_of_visits if self.number_of_visits > 0 else 0
 
+    def to_dot(self, dot, node_id):
+        # 创建当前节点的标签
+        label = f"Action: {self.parent_action if self.parent_action is not None else 'Root'}\n"
+        label += f"Visits: {self.number_of_visits}\n"
+        label += f"Value: {self.value:.3f}\n"
+        label += f"Score: {self.game_state.get_score()}\n"
+        label += f"Board:\n{self.game_state.board}"
+        if hasattr(self, 'policy'):
+            label += f"\nPolicy: {np.array2string(self.policy, precision=2)}"
+        
+        # 添加节点
+        dot.node(str(node_id), label)
+        
+        # 如果有父节点，添加边
+        if self.parent is not None:
+            parent_id = id(self.parent)
+            dot.edge(str(parent_id), str(node_id))
+        
+        # 递归处理所有子节点
+        for action, child in self.children.items():
+            child.to_dot(dot, id(child))
+        
+        return dot
+
 class MCTS:
-    def __init__(self, model, num_simulations=800, c_puct=1.0):
+    def __init__(self, model, num_simulations=800, c_puct=1.0, visualization_dir='mcts_visualizations'):
         self.model = model
         self.num_simulations = num_simulations
         self.c_puct = c_puct
+        self.visualization_dir = visualization_dir
+        self.step_counter = 0
+        
+    def visualize_tree(self, root_node, step):
+        """将MCTS树可视化为图像文件"""
+        dot = graphviz.Digraph(comment='MCTS Tree')
+        dot.attr(rankdir='TB')
+        
+        # 从根节点开始构建图
+        root_node.to_dot(dot, id(root_node))
+        
+        # 保存图像
+        filename = os.path.join(self.visualization_dir, f'mcts_tree_step_{step}')
+        dot.render(filename, view=False, format='svg')
         
     def get_action_probs(self, game_state, temperature=1.0):
         root = MCTSNode(game_state=game_state.clone(), parent=None, parent_action=None, model=self.model)
@@ -87,6 +126,10 @@ class MCTS:
             while node is not None:
                 node.update(value)
                 node = node.parent
+
+        # 在选择动作之前生成可视化
+        self.visualize_tree(root, self.step_counter)
+        self.step_counter += 1
 
         # 计算访问次数的概率分布
         visits = np.array([child.number_of_visits for child in root.children.values()])

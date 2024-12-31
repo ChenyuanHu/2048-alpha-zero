@@ -61,15 +61,18 @@ class GameMemory:
     def __len__(self):
         return len(self.memory)
 
-def play_game_worker(model_state_dict, device, num_simulations, c_puct, temperature):
+def play_game_worker(model_state_dict, device, num_simulations, c_puct, temperature, iteration):
     try:
         # 创建模型副本
         model = AlphaZeroNet().to(device)
         model.load_state_dict(model_state_dict)
         model.eval()
         
-        # 创建MCTS实例
-        mcts = MCTS(model, num_simulations=num_simulations, c_puct=c_puct)
+        # 创建MCTS实例，为每个worker创建独立的可视化目录
+        worker_id = mp.current_process().name.split('-')[-1]
+        vis_dir = f'mcts_visualizations/iteration_{iteration}/worker_{worker_id}'
+        os.makedirs(vis_dir, exist_ok=True)
+        mcts = MCTS(model, num_simulations=num_simulations, c_puct=c_puct, visualization_dir=vis_dir)
         
         # 玩一局游戏
         game = Game2048()
@@ -111,7 +114,7 @@ class ParallelSelfPlay:
             self.pool.join()
             self.pool = None
         
-    def play_games(self, num_games):
+    def play_games(self, num_games, iteration):
         global should_stop
         try:
             # 获取模型状态字典
@@ -121,7 +124,7 @@ class ParallelSelfPlay:
             self.init_pool()
             
             # 准备参数
-            args = [(state_dict, self.device, self.num_simulations, self.c_puct, self.temperature)] * num_games
+            args = [(state_dict, self.device, self.num_simulations, self.c_puct, self.temperature, iteration)] * num_games
             
             # 并行执行游戏
             results = []
@@ -213,7 +216,7 @@ def main():
                 
             model.eval()  # 自我对弈时使用评估模式
             # 并行自我对弈收集数据
-            states, policies, values, scores = parallel_self_play.play_games(num_episodes)
+            states, policies, values, scores = parallel_self_play.play_games(num_episodes, iteration)
             
             if should_stop or states is None:
                 break
