@@ -61,17 +61,20 @@ class GameMemory:
     def __len__(self):
         return len(self.memory)
 
-def play_game_worker(model_state_dict, device, num_simulations, c_puct, temperature, iteration):
+def play_game_worker(model_state_dict, device, num_simulations, c_puct, temperature, iteration, enable_visualization=False):
     try:
         # 创建模型副本
         model = AlphaZeroNet().to(device)
         model.load_state_dict(model_state_dict)
         model.eval()
         
-        # 创建MCTS实例，为每个worker创建独立的可视化目录
-        worker_id = mp.current_process().name.split('-')[-1]
-        vis_dir = f'mcts_visualizations/iteration_{iteration}/worker_{worker_id}'
-        os.makedirs(vis_dir, exist_ok=True)
+        if enable_visualization:
+            # 创建MCTS实例，为每个worker创建独立的可视化目录
+            worker_id = mp.current_process().name.split('-')[-1]
+            vis_dir = f'mcts_visualizations/iteration_{iteration}/worker_{worker_id}'
+            os.makedirs(vis_dir, exist_ok=True)
+        else:
+            vis_dir = None
         mcts = MCTS(model, num_simulations=num_simulations, c_puct=c_puct, visualization_dir=vis_dir)
         
         # 玩一局游戏
@@ -95,13 +98,14 @@ def play_game_worker(model_state_dict, device, num_simulations, c_puct, temperat
         return None
 
 class ParallelSelfPlay:
-    def __init__(self, model, num_workers, device, num_simulations, c_puct, temperature):
+    def __init__(self, model, num_workers, device, num_simulations, c_puct, temperature, enable_visualization=False):
         self.model = model
         self.num_workers = num_workers
         self.device = device
         self.num_simulations = num_simulations
         self.c_puct = c_puct
         self.temperature = temperature
+        self.enable_visualization = enable_visualization
         self.pool = None
         
     def init_pool(self):
@@ -124,7 +128,7 @@ class ParallelSelfPlay:
             self.init_pool()
             
             # 准备参数
-            args = [(state_dict, self.device, self.num_simulations, self.c_puct, self.temperature, iteration)] * num_games
+            args = [(state_dict, self.device, self.num_simulations, self.c_puct, self.temperature, iteration, self.enable_visualization)] * num_games
             
             # 并行执行游戏
             results = []
@@ -174,6 +178,7 @@ def main():
     weight_decay = 1e-4      # 权重衰减
     c_puct = 1.0             # MCTS的c_puct参数
     temperature = 1.0        # MCTS的temperature参数
+    enable_mcts_visualization = False
 
     # 设置设备和性能优化
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -206,7 +211,7 @@ def main():
     
     # 创建记忆库和并行自我对弈工作器
     memory = GameMemory(capacity=memory_capacity)
-    parallel_self_play = ParallelSelfPlay(model, num_workers, device, num_simulations, c_puct, temperature)
+    parallel_self_play = ParallelSelfPlay(model, num_workers, device, num_simulations, c_puct, temperature, enable_mcts_visualization)
     
     try:
         # 训练循环
