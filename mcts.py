@@ -187,6 +187,7 @@ class MCTS:
             else:
                 probs = np.zeros(32)
                 probs[action] = 1
+            self.node = self.node.children[action]
             return action, probs
         else:
             # 根据temperature计算概率
@@ -198,6 +199,7 @@ class MCTS:
                 probs = np.zeros(32)
                 probs[actions] = visits / visits.sum()
             action = np.random.choice(actions, p=visits/visits.sum())
+            self.node = self.node.children[action]
             return action, probs
 
 def main():
