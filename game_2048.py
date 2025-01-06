@@ -6,6 +6,7 @@ class Game2048:
         self.board = np.zeros((4, 4), dtype=int)
         self.score = 0
         self.is_player_turn = True  # True表示移动方向的玩家，False表示放置数字的玩家
+        self.step = 0
         self.add_new_tile()
         self.add_new_tile()
         
@@ -17,6 +18,9 @@ class Game2048:
             
     def get_state(self):
         return self.board.copy()
+
+    def get_step(self):
+        return self.step
     
     def get_score(self):
         return self.score
@@ -97,6 +101,7 @@ class Game2048:
         # 检查板子是否发生变化
         if not np.array_equal(original_board, self.board):
             self.is_player_turn = False
+            self.step += 1
             return True
         else:
             self.score = original_score

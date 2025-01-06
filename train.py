@@ -10,7 +10,7 @@ from tqdm import tqdm
 import logging
 import multiprocessing as mp
 import signal
-import sys
+import time
 from neural_network import AlphaZeroNet
 from mcts import MCTS
 from game_2048 import Game2048
@@ -68,9 +68,9 @@ def play_game_worker(model_state_dict, device, num_simulations, c_puct, temperat
         model.load_state_dict(model_state_dict)
         model.eval()
         
+        worker_id = mp.current_process().name.split('-')[-1]
         if enable_visualization:
             # 创建MCTS实例，为每个worker创建独立的可视化目录
-            worker_id = mp.current_process().name.split('-')[-1]
             vis_dir = f'mcts_visualizations/iteration_{iteration}/worker_{worker_id}'
             os.makedirs(vis_dir, exist_ok=True)
         else:
@@ -83,18 +83,29 @@ def play_game_worker(model_state_dict, device, num_simulations, c_puct, temperat
         
         while not game.is_game_over():
             state = game.board.copy()
+            time_start = time.time()
             if game.is_player_turn:
                 # 移动方向玩家的回合
                 action, policy = mcts.get_action_probs(game, temperature)
                 states.append(state)
                 policies.append(policy)
-                game.move(action)
+                ok = game.move(action)
+                if not ok:
+                    logging.info(f"worker {worker_id}, move failed, action: {action} =================================================")
+
+                if game.get_step() % 20 == 0:
+                    logging.info(f"worker {worker_id}, step: {game.get_step()}, score: {game.get_score()}, max_tile: {game.get_max_tile()}, time: {time.time() - time_start:.2f}s")
             else:
                 # 放置数字玩家的回合
                 action, policy = mcts.get_action_probs(game, temperature)
                 # states.append(state)
                 # policies.append(policy)
-                game.place_tile_id(action)
+                ok = game.place_tile_id(action)
+                if not ok:
+                    logging.info(f"worker {worker_id}, place tile failed, action: {action} =================================================")
+
+                if game.get_step() % 20 == 0:
+                    logging.info(f"worker {worker_id}, put tile, time: {time.time() - time_start:.2f}s")
         
         final_score = game.get_score()
         normalized_score = final_score / 20000
@@ -173,18 +184,18 @@ def main():
     signal.signal(signal.SIGTERM, signal_handler)
 
     # 训练参数
-    num_iterations = 1000    # 迭代次数, 包含Self-play的次数
-    num_episodes = 20        # 每次迭代进行20次Self-play
-    memory_capacity = 200000 # memory的容量
-    num_batches = 100        # 每次迭代从memory中取数据进行训练的次数
-    batch_size = 512         # 每次训练从memory中取batch size的数据进行训练
-    num_simulations = 400    # MCTS的模拟次数
-    num_workers = min(mp.cpu_count() - 2, 24)  # 留出2个核心给系统和训练进程
-    learning_rate = 0.002    # 学习率
-    weight_decay = 1e-4      # 权重衰减
-    c_puct = 1.0             # MCTS的c_puct参数
-    temperature = 1.0        # MCTS的temperature参数
     enable_mcts_visualization = False
+    num_workers = mp.cpu_count() - 2           # 留出2个核心给系统和训练进程
+    num_episodes = num_workers                 # 每次迭代进行Self-play次数
+    num_simulations = 400                      # MCTS的模拟次数
+    c_puct = 1.0                               # MCTS的c_puct参数
+    temperature = 1.0                          # MCTS的temperature参数
+    num_iterations = 1000                      # 迭代次数, 包含Self-play，训练，保存检查点
+    memory_capacity = num_episodes * 1000      # memory的容量
+    num_batches = 100                          # 每次迭代从memory中取数据进行训练的次数
+    batch_size = 512                           # 每次训练从memory中取batch size的数据进行训练
+    learning_rate = 0.002                      # 学习率
+    weight_decay = 1e-4                        # 权重衰减
 
     logging.info("Starting training with %d workers", num_workers)
     logging.info(f"num_iterations: {num_iterations}\n"
