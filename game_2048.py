@@ -5,6 +5,7 @@ class Game2048:
     def __init__(self):
         self.board = np.zeros((4, 4), dtype=int)
         self.score = 0
+        self.is_player_turn = True  # True表示移动方向的玩家，False表示放置数字的玩家
         self.add_new_tile()
         self.add_new_tile()
         
@@ -31,7 +32,22 @@ class Game2048:
                     return False
         return True
     
+    # 将(pos(x, y), value)转化为id线性动作空间
+    def place_tile_id(self, vid):
+        id = vid % 16
+        value = 2 if id < 16 else 4
+        """放置数字玩家的动作"""
+        if self.board[id // 4, id % 4] == 0:
+            self.board[id // 4, id % 4] = value
+            self.is_player_turn = True
+            return True
+        return False
+    
     def move(self, direction):
+        """移动方向玩家的动作"""
+        if not self.is_player_turn:
+            return False
+            
         # 0: up, 1: right, 2: down, 3: left
         original_board = self.board.copy()
         original_score = self.score
@@ -80,7 +96,7 @@ class Game2048:
             
         # 检查板子是否发生变化
         if not np.array_equal(original_board, self.board):
-            self.add_new_tile()
+            self.is_player_turn = False
             return True
         else:
             self.score = original_score
@@ -90,12 +106,26 @@ class Game2048:
         return np.max(self.board)
     
     def get_available_moves(self):
-        available_moves = []
-        for direction in range(4):
-            game_copy = copy.deepcopy(self)
-            if game_copy.move(direction):
-                available_moves.append(direction)
-        return available_moves
+        """获取当前玩家的可用动作"""
+        if self.is_player_turn:
+            # 移动方向玩家的可用动作
+            available_moves = []
+            for direction in range(4):
+                game_copy = copy.deepcopy(self)
+                if game_copy.move(direction):
+                    available_moves.append(direction)
+            return available_moves
+        else:
+            # 放置数字玩家的可用动作
+            empty_cells = self.get_empty_cells()
+            available_moves = []
+            for cell in empty_cells:
+                id = cell[0] * 4 + cell[1]
+                available_moves.append(id)
+            for cell in empty_cells:
+                id = cell[0] * 4 + cell[1] + 16
+                available_moves.append(id)
+            return available_moves
     
     def get_empty_cells(self):
         return list(zip(*np.where(self.board == 0)))

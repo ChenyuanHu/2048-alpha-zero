@@ -83,11 +83,18 @@ def play_game_worker(model_state_dict, device, num_simulations, c_puct, temperat
         
         while not game.is_game_over():
             state = game.board.copy()
-            action, policy = mcts.get_action_probs(game, temperature)
-            
-            states.append(state)
-            policies.append(policy)
-            game.move(action)
+            if game.is_player_turn:
+                # 移动方向玩家的回合
+                action, policy = mcts.get_action_probs(game, temperature)
+                states.append(state)
+                policies.append(policy)
+                game.move(action)
+            else:
+                # 放置数字玩家的回合
+                action, policy = mcts.get_action_probs(game, temperature)
+                # states.append(state)
+                # policies.append(policy)
+                game.place_tile_id(action)
         
         final_score = game.get_score()
         normalized_score = final_score / 20000
