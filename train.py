@@ -93,8 +93,7 @@ def play_game_worker(model_state_dict, device, num_simulations, c_puct, temperat
                 if not ok:
                     logging.info(f"worker {worker_id}, move failed, action: {action} =================================================")
 
-                if game.get_step() % 20 == 0:
-                    logging.info(f"worker {worker_id}, step: {game.get_step()}, score: {game.get_score()}, max_tile: {game.get_max_tile()}, time: {time.time() - time_start:.2f}s")
+                logging.info(f"worker {worker_id}, step: {game.get_step()}, score: {game.get_score()}, max_tile: {game.get_max_tile()}, time: {time.time() - time_start:.2f}s")
             else:
                 # 放置数字玩家的回合
                 action, policy = mcts.get_action_probs(game, temperature)
@@ -104,8 +103,7 @@ def play_game_worker(model_state_dict, device, num_simulations, c_puct, temperat
                 if not ok:
                     logging.info(f"worker {worker_id}, place tile failed, action: {action} =================================================")
 
-                if game.get_step() % 20 == 0:
-                    logging.info(f"worker {worker_id}, put tile, time: {time.time() - time_start:.2f}s")
+                logging.info(f"worker {worker_id}, put tile, time: {time.time() - time_start:.2f}s")
         
         final_score = game.get_score()
         normalized_score = final_score / 20000
@@ -187,11 +185,11 @@ def main():
     enable_mcts_visualization = False
     num_workers = mp.cpu_count() - 2           # 留出2个核心给系统和训练进程
     num_episodes = num_workers                 # 每次迭代进行Self-play次数
-    num_simulations = 400                      # MCTS的模拟次数
+    num_simulations = 4000                     # MCTS的模拟次数
     c_puct = 1.0                               # MCTS的c_puct参数
     temperature = 1.0                          # MCTS的temperature参数
     num_iterations = 1000                      # 迭代次数, 包含Self-play，训练，保存检查点
-    memory_capacity = num_episodes * 1000      # memory的容量
+    memory_capacity = num_episodes * 2000      # memory的容量
     num_batches = 100                          # 每次迭代从memory中取数据进行训练的次数
     batch_size = 512                           # 每次训练从memory中取batch size的数据进行训练
     learning_rate = 0.002                      # 学习率
