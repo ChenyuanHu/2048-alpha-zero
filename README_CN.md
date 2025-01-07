@@ -38,6 +38,12 @@ python train.py
 
 训练过程会自动保存模型检查点和训练日志。你可以在 `training.log` 文件中查看训练进度。
 
+## 训练结果
+
+以下是训练过程中分数的变化曲线：
+
+![训练曲线](training_curves.svg)
+
 ## 特性
 
 - 使用AlphaZero算法进行自我对弈训练

@@ -38,6 +38,12 @@ python train.py
 
 The training process automatically saves model checkpoints and training logs. You can monitor the training progress in the `training.log` file.
 
+## Training Results
+
+Below is the training curve showing the score progression during training:
+
+![Training Curves](training_curves.svg)
+
 ## Features
 
 - Self-play training using the AlphaZero algorithm
