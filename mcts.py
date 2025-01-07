@@ -221,7 +221,7 @@ def main():
         print("Model loaded from checkpoint")
     
     game = Game2048()
-    mcts = MCTS(model)
+    mcts = MCTS(model, num_simulations=4000, c_puct=1.0)
     
     print(f"\nCurrent board:\n{game.board}")
     print(f"Current score: {game.get_score()}")
@@ -230,12 +230,13 @@ def main():
         if game.is_player_turn:
             # 移动方向玩家的回合
             game.move(action)
-            print(f"\nCurrent board:\n{game.board}")
-            print(f"Current score: {game.get_score()}, action: {action}")
+            last_action = action
         else:
             # 放置数字玩家的回合
             game.place_tile_id(action)
-            print(f"action: {action}")
+            # print(f"action: {action}")
+            print(f"\nCurrent board:\n{game.board}")
+            print(f"Current score: {game.get_score()}, action: {last_action}")
         
     print("\nGame Over!")
     print(f"Final board:\n{game.board}")
