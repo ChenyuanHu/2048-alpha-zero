@@ -4,6 +4,7 @@ from game_2048 import Game2048
 import torch
 import os
 import graphviz
+import logging
 
 def normalize_score(score):
     return score / 2000000
@@ -16,7 +17,7 @@ class MCTSNode:
         self.parent = parent
         self.parent_action = parent_action
         self.children = {}
-        self.number_of_visits = 0
+        self.number_of_visits = 1
         self.value_sum = 0
         self.prior_probability = 0
         self.untried_actions = self.available_moves.copy()
@@ -46,15 +47,21 @@ class MCTSNode:
         tmp[self.available_moves] = self.policy[self.available_moves]
         self.policy = tmp / (tmp.sum() + 1e-8)
         
-    def select_child(self, c_puct=1.0):
+    def select_child(self, c_puct=1.0, mcts=None):
         # AlphaZero的UCB变体，考虑先验概率
         def score(node):
             exploitation = node.get_value()
-
             n_parent = self.number_of_visits
             n_child = node.number_of_visits
             exploration = node.prior_probability * math.sqrt(n_parent) / (1 + n_child)
-            return exploitation + c_puct * exploration
+            exploration = c_puct * exploration
+            
+            # 记录统计信息
+            if mcts is not None:
+                mcts.stats['exploitation'].append(exploitation)
+                mcts.stats['exploration'].append(exploration)
+            
+            return exploitation + exploration
         
         s = sorted(self.children.items(), key=lambda act_node: score(act_node[1]))[-1]
         return s[0], s[1]
@@ -72,7 +79,7 @@ class MCTSNode:
         
     def get_value(self):
         # 平均价值
-        return self.value_sum / self.number_of_visits if self.number_of_visits > 0 else 0
+        return self.value_sum / self.number_of_visits
 
     def to_dot(self, dot, node_id):
         # 创建当前节点的标签
@@ -108,6 +115,24 @@ class MCTS:
         self.root = None  # 保存搜索树的根节点
         self.node = None
         self.tile_action_size = tile_action_size
+        # 添加统计对象
+        self.stats = {
+            'exploitation': [],
+            'exploration': []
+        }
+        
+    def reset_stats(self):
+        self.stats = {
+            'exploitation': [],
+            'exploration': []
+        }
+
+    def print_stats(self):
+        # 在返回之前输出统计信息
+        if len(self.stats['exploitation']) > 0:
+            for key in ['exploitation', 'exploration']:
+                values = np.array(self.stats[key])
+                logging.info(f"{key}: min={np.min(values):.4f}, max={np.max(values):.4f}, mean={np.mean(values):.4f}, std={np.std(values):.4f}, median={np.median(values):.4f}")
         
     def visualize_tree(self, root_node, step):
         """将MCTS树可视化为图像文件"""
@@ -125,6 +150,9 @@ class MCTS:
         dot.render(filename, view=False, format='svg')
         
     def get_action_probs(self, game_state, temperature=1.0):
+        # 重置统计信息
+        self.reset_stats()
+        
         # 如果是新游戏或者根节点不存在，创建新的根节点
         if self.root is None:
             self.root = MCTSNode(game_state=game_state.clone(), parent=None, parent_action=None, model=self.model, tile_action_size=self.tile_action_size)
@@ -135,7 +163,7 @@ class MCTS:
             
             # Selection
             while node.untried_actions == [] and node.children != {}:
-                action, node = node.select_child(self.c_puct)
+                action, node = node.select_child(self.c_puct, None)
             
             # Expansion
             if node.untried_actions != []:
@@ -193,6 +221,7 @@ class MCTS:
             probs[actions] = visits / visits.sum()
             
         self.node = self.node.children[action]
+        self.print_stats()
         return action, probs
 
 def main():
