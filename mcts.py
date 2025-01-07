@@ -24,35 +24,38 @@ class MCTSNode:
         if self.available_moves == []:
             # 终局状态直接使用实际分数
             self.value = normalize_score(self.game_state.get_score())
-        else:
-            # 模型预测的策略和价值
-            if self.game_state.is_player_turn:
-                self.policy, self.value = self.model.predict(self.game_state.get_state())
-                # 移动方向玩家
-                tmp = np.zeros(4)
-                tmp[self.available_moves] = self.policy[self.available_moves]
-                self.policy = tmp / (tmp.sum() + 1e-8)
-            else:
-                if self.available_moves == []:
-                    self.value = self.parent.value
-                    self.policy = []
-                    print("终局状态")
-                else:
-                    self.value = self.parent.value
-                    self.policy = np.array([9] * 16 + [1] * 16)
-                    if len(self.available_moves) > 2:
-                        self.available_moves = np.random.choice(self.available_moves, size=2, replace=False).tolist()
-                        self.untried_actions = self.available_moves.copy()
-                    tmp = np.zeros(32)
-                    tmp[self.available_moves] = self.policy[self.available_moves]
-                    self.policy = tmp / (tmp.sum() + 1e-8)
+            return
+
+        # 模型预测的策略和价值
+        if self.game_state.is_player_turn:
+            self.policy, self.value = self.model.predict(self.game_state.get_state())
+            # 移动方向玩家
+            tmp = np.zeros(4)
+            tmp[self.available_moves] = self.policy[self.available_moves]
+            self.policy = tmp / (tmp.sum() + 1e-8)
+            return
+
+        # 放置数字玩家
+        self.value = self.parent.value
+        self.policy = np.array([9] * 16 + [1] * 16)
+        if len(self.available_moves) > 2:
+            self.available_moves = np.random.choice(self.available_moves, size=2, replace=False).tolist()
+            self.untried_actions = self.available_moves.copy()
+        tmp = np.zeros(32)
+        tmp[self.available_moves] = self.policy[self.available_moves]
+        self.policy = tmp / (tmp.sum() + 1e-8)
         
     def select_child(self, c_puct=1.0):
         # AlphaZero的UCB变体，考虑先验概率
-        s = sorted(self.children.items(),
-                  key=lambda act_node: act_node[1].get_value() + 
-                  c_puct * act_node[1].prior_probability * 
-                  math.sqrt(self.number_of_visits) / (1 + act_node[1].number_of_visits))[-1]
+        def score(node):
+            exploitation = node.get_value()
+
+            n_parent = self.number_of_visits
+            n_child = node.number_of_visits
+            exploration = node.prior_probability * math.sqrt(n_parent) / (1 + n_child)
+            return exploitation + c_puct * exploration
+        
+        s = sorted(self.children.items(), key=lambda act_node: score(act_node[1]))[-1]
         return s[0], s[1]
     
     def expand(self, action, game_state, prior_probability):
@@ -67,6 +70,7 @@ class MCTSNode:
         self.value_sum += value
         
     def get_value(self):
+        # 平均价值
         return self.value_sum / self.number_of_visits if self.number_of_visits > 0 else 0
 
     def to_dot(self, dot, node_id):
