@@ -198,18 +198,19 @@ def main():
     weight_decay = 1e-4                        # 权重衰减
 
     logging.info("Starting training with %d workers", num_workers)
-    logging.info(f"num_iterations: {num_iterations}\n"
+    logging.info(f"enable_mcts_visualization: {enable_mcts_visualization}\n"
+                 f"num_workers: {num_workers}\n"
                  f"num_episodes: {num_episodes}\n"
+                 f"num_simulations: {num_simulations}\n"
+                 f"tile_action_size: {tile_action_size}\n"
+                 f"c_puct: {c_puct}\n"
+                 f"temperature: {temperature}\n"
+                 f"num_iterations: {num_iterations}\n"
                  f"memory_capacity: {memory_capacity}\n"
                  f"num_batches: {num_batches}\n"
                  f"batch_size: {batch_size}\n"
-                 f"num_simulations: {num_simulations}\n"
-                 f"num_workers: {num_workers}\n"
                  f"learning_rate: {learning_rate}\n"
-                 f"weight_decay: {weight_decay}\n"
-                 f"c_puct: {c_puct}\n"
-                 f"temperature: {temperature}\n"
-                 f"enable_mcts_visualization: {enable_mcts_visualization}")
+                 f"weight_decay: {weight_decay}")
 
     # 设置设备和性能优化
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
