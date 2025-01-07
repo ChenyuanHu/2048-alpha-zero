@@ -219,15 +219,19 @@ def main():
     game = Game2048()
     mcts = MCTS(model)
     
+    print(f"\nCurrent board:\n{game.board}")
+    print(f"Current score: {game.get_score()}")
     while not game.is_game_over():
-        print(f"\nCurrent board:\n{game.board}")
-        print(f"Current score: {game.get_score()}")
-        
-        # 使用MCTS选择最佳移动
         action, _ = mcts.get_action_probs(game, temperature=0.1)
-        
-        # 执行移动
-        game.move(action)
+        if game.is_player_turn:
+            # 移动方向玩家的回合
+            game.move(action)
+            print(f"\nCurrent board:\n{game.board}")
+            print(f"Current score: {game.get_score()}, action: {action}")
+        else:
+            # 放置数字玩家的回合
+            game.place_tile_id(action)
+            print(f"action: {action}")
         
     print("\nGame Over!")
     print(f"Final board:\n{game.board}")
