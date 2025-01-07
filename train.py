@@ -61,7 +61,7 @@ class GameMemory:
     def __len__(self):
         return len(self.memory)
 
-def play_game_worker(model_state_dict, device, num_simulations, c_puct, temperature, iteration, enable_visualization=False):
+def play_game_worker(model_state_dict, device, num_simulations, c_puct, temperature, iteration, enable_visualization=False, tile_action_size=2):
     try:
         # 创建模型副本
         model = AlphaZeroNet().to(device)
@@ -75,7 +75,7 @@ def play_game_worker(model_state_dict, device, num_simulations, c_puct, temperat
             os.makedirs(vis_dir, exist_ok=True)
         else:
             vis_dir = None
-        mcts = MCTS(model, num_simulations=num_simulations, c_puct=c_puct, visualization_dir=vis_dir)
+        mcts = MCTS(model, num_simulations=num_simulations, c_puct=c_puct, visualization_dir=vis_dir, tile_action_size=tile_action_size)
         
         # 玩一局游戏
         game = Game2048()
@@ -114,7 +114,7 @@ def play_game_worker(model_state_dict, device, num_simulations, c_puct, temperat
         return None
 
 class ParallelSelfPlay:
-    def __init__(self, model, num_workers, device, num_simulations, c_puct, temperature, enable_visualization=False):
+    def __init__(self, model, num_workers, device, num_simulations, c_puct, temperature, enable_visualization=False, tile_action_size=2):
         self.model = model
         self.num_workers = num_workers
         self.device = device
@@ -122,6 +122,7 @@ class ParallelSelfPlay:
         self.c_puct = c_puct
         self.temperature = temperature
         self.enable_visualization = enable_visualization
+        self.tile_action_size = tile_action_size
         self.pool = None
         
     def init_pool(self):
@@ -144,7 +145,7 @@ class ParallelSelfPlay:
             self.init_pool()
             
             # 准备参数
-            args = [(state_dict, self.device, self.num_simulations, self.c_puct, self.temperature, iteration, self.enable_visualization)] * num_games
+            args = [(state_dict, self.device, self.num_simulations, self.c_puct, self.temperature, iteration, self.enable_visualization, self.tile_action_size)] * num_games
             
             # 并行执行游戏
             results = []
@@ -186,6 +187,7 @@ def main():
     num_workers = mp.cpu_count() - 2           # 留出2个核心给系统和训练进程
     num_episodes = num_workers                 # 每次迭代进行Self-play次数
     num_simulations = 4000                     # MCTS的模拟次数
+    tile_action_size = 2                       # MCTS的tile_action_size参数， 放置数字玩家的动作空间大小，减少计算量
     c_puct = 1.0                               # MCTS的c_puct参数
     temperature = 1.0                          # MCTS的temperature参数
     num_iterations = 1000                      # 迭代次数, 包含Self-play，训练，保存检查点
@@ -240,7 +242,7 @@ def main():
     
     # 创建记忆库和并行自我对弈工作器
     memory = GameMemory(capacity=memory_capacity)
-    parallel_self_play = ParallelSelfPlay(model, num_workers, device, num_simulations, c_puct, temperature, enable_mcts_visualization)
+    parallel_self_play = ParallelSelfPlay(model, num_workers, device, num_simulations, c_puct, temperature, enable_mcts_visualization, tile_action_size)
     
     try:
         # 训练循环

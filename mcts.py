@@ -9,7 +9,7 @@ def normalize_score(score):
     return score / 2000000
 
 class MCTSNode:
-    def __init__(self, game_state, parent, parent_action, model):
+    def __init__(self, game_state, parent, parent_action, model, tile_action_size=2):
         self.model = model
         self.game_state = game_state
         self.available_moves = game_state.get_available_moves()
@@ -20,6 +20,7 @@ class MCTSNode:
         self.value_sum = 0
         self.prior_probability = 0
         self.untried_actions = self.available_moves.copy()
+        self.tile_action_size = tile_action_size   # 放置数字玩家的动作空间大小，减少计算量
         
         if self.available_moves == []:
             # 终局状态直接使用实际分数
@@ -38,8 +39,8 @@ class MCTSNode:
         # 放置数字玩家
         self.value = self.parent.value
         self.policy = np.array([9] * 16 + [1] * 16)
-        if len(self.available_moves) > 2:
-            self.available_moves = np.random.choice(self.available_moves, size=2, replace=False).tolist()
+        if len(self.available_moves) > self.tile_action_size:
+            self.available_moves = np.random.choice(self.available_moves, size=self.tile_action_size, replace=False).tolist()
             self.untried_actions = self.available_moves.copy()
         tmp = np.zeros(32)
         tmp[self.available_moves] = self.policy[self.available_moves]
@@ -59,7 +60,7 @@ class MCTSNode:
         return s[0], s[1]
     
     def expand(self, action, game_state, prior_probability):
-        node = MCTSNode(game_state=game_state, parent=self, parent_action=action, model=self.model)
+        node = MCTSNode(game_state=game_state, parent=self, parent_action=action, model=self.model, tile_action_size=self.tile_action_size)
         node.prior_probability = prior_probability
         self.untried_actions.remove(action)
         self.children[action] = node
@@ -98,7 +99,7 @@ class MCTSNode:
         return dot
 
 class MCTS:
-    def __init__(self, model, num_simulations=800, c_puct=1.0, visualization_dir=None):
+    def __init__(self, model, num_simulations=800, c_puct=1.0, visualization_dir=None, tile_action_size=2):
         self.model = model
         self.num_simulations = num_simulations
         self.c_puct = c_puct
@@ -106,6 +107,7 @@ class MCTS:
         self.step_counter = 0
         self.root = None  # 保存搜索树的根节点
         self.node = None
+        self.tile_action_size = tile_action_size
         
     def visualize_tree(self, root_node, step):
         """将MCTS树可视化为图像文件"""
@@ -125,7 +127,7 @@ class MCTS:
     def get_action_probs(self, game_state, temperature=1.0):
         # 如果是新游戏或者根节点不存在，创建新的根节点
         if self.root is None:
-            self.root = MCTSNode(game_state=game_state.clone(), parent=None, parent_action=None, model=self.model)
+            self.root = MCTSNode(game_state=game_state.clone(), parent=None, parent_action=None, model=self.model, tile_action_size=self.tile_action_size)
             self.node = self.root
         
         for _ in range(self.num_simulations):
@@ -138,34 +140,24 @@ class MCTS:
             # Expansion
             if node.untried_actions != []:
                 # 根据策略网络的概率选择动作
+                action_size = 4 if node.game_state.is_player_turn else 32
+                
+                # 计算未尝试动作的概率
+                untried_probs = np.zeros(action_size)
+                untried_probs[node.untried_actions] = node.policy[node.untried_actions]
+                untried_probs = (untried_probs / untried_probs.sum() if untried_probs.sum() > 0 
+                               else np.ones(action_size) / action_size)
+                
+                # 选择动作
+                action = np.random.choice(np.arange(action_size), p=untried_probs)
+                
+                # 执行动作并扩展节点
+                next_state = node.game_state.clone()
                 if node.game_state.is_player_turn:
-                    # 移动方向玩家
-                    untried_probs = np.zeros(4)
-                    untried_probs[node.untried_actions] = node.policy[node.untried_actions]
-                    if untried_probs.sum() > 0:
-                        untried_probs = untried_probs / untried_probs.sum()
-                    else:
-                        untried_probs = np.ones(len(untried_probs)) / len(untried_probs)
-
-                    action = np.random.choice(np.arange(4), p=untried_probs)         
-
-                    next_state = node.game_state.clone()
                     next_state.move(action)
-                    node = node.expand(action, next_state, node.policy[action])
                 else:
-                    # 放置数字玩家
-                    untried_probs = np.zeros(32)
-                    untried_probs[node.untried_actions] = node.policy[node.untried_actions]
-                    if untried_probs.sum() > 0:
-                        untried_probs = untried_probs / untried_probs.sum()
-                    else:
-                        untried_probs = np.ones(len(untried_probs)) / len(untried_probs)
-
-                    action = np.random.choice(np.arange(32), p=untried_probs)         
-
-                    next_state = node.game_state.clone()
                     next_state.place_tile_id(action)
-                    node = node.expand(action, next_state, node.policy[action])
+                node = node.expand(action, next_state, node.policy[action])
             
             value = node.value
             # Backup
@@ -182,29 +174,26 @@ class MCTS:
         visits = np.array([child.number_of_visits for child in self.node.children.values()])
         actions = np.array(list(self.node.children.keys()))
         
+        # 根据temperature计算概率
+        visits = visits if temperature == 0 else visits ** (1/temperature)
+        action_size = 4 if game_state.is_player_turn else 32
+        
+        # 选择动作
         if temperature == 0:
-            # 选择访问次数最多的动作
             action = actions[np.argmax(visits)]
-            if game_state.is_player_turn:
-                probs = np.zeros(4)
-                probs[action] = 1
-            else:
-                probs = np.zeros(32)
-                probs[action] = 1
-            self.node = self.node.children[action]
-            return action, probs
         else:
-            # 根据temperature计算概率
-            visits = visits ** (1/temperature)
-            if game_state.is_player_turn:
-                probs = np.zeros(4)
-                probs[actions] = visits / visits.sum()
-            else:
-                probs = np.zeros(32)
-                probs[actions] = visits / visits.sum()
-            action = np.random.choice(actions, p=visits/visits.sum())
-            self.node = self.node.children[action]
-            return action, probs
+            probs_visits = visits / visits.sum()
+            action = np.random.choice(actions, p=probs_visits)
+            
+        # 计算概率分布
+        probs = np.zeros(action_size)
+        if temperature == 0:
+            probs[action] = 1
+        else:
+            probs[actions] = visits / visits.sum()
+            
+        self.node = self.node.children[action]
+        return action, probs
 
 def main():
     from neural_network import AlphaZeroNet
@@ -221,7 +210,7 @@ def main():
         print("Model loaded from checkpoint")
     
     game = Game2048()
-    mcts = MCTS(model, num_simulations=4000, c_puct=1.0)
+    mcts = MCTS(model, num_simulations=4000, c_puct=1.0, tile_action_size=2)
     
     print(f"\nCurrent board:\n{game.board}")
     print(f"Current score: {game.get_score()}")
