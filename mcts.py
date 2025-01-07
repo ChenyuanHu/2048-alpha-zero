@@ -203,24 +203,19 @@ class MCTS:
         actions = np.array(list(self.node.children.keys()))
         
         # 根据temperature计算概率
-        visits = visits if temperature == 0 else visits ** (1/temperature)
+        visits = visits ** (1/temperature)
         action_size = 4 if game_state.is_player_turn else 32
         
         # 选择动作
-        if temperature == 0:
-            action = actions[np.argmax(visits)]
-        else:
-            probs_visits = visits / visits.sum()
-            action = np.random.choice(actions, p=probs_visits)
+        probs_visits = visits / visits.sum()
+        action = np.random.choice(actions, p=probs_visits)
             
         # 计算概率分布
         probs = np.zeros(action_size)
-        if temperature == 0:
-            probs[action] = 1
-        else:
-            probs[actions] = visits / visits.sum()
+        probs[actions] = visits / visits.sum()
             
         self.node = self.node.children[action]
+
         self.print_stats()
         return action, probs
 
