@@ -193,11 +193,6 @@ class MCTS:
                 node.update(value)
                 node = node.parent
 
-        # 在选择动作之前生成可视化
-        if self.visualization_dir:
-            self.visualize_tree(self.root, self.step_counter)
-            self.step_counter += 1
-
         # 计算访问次数的概率分布
         visits = np.array([child.number_of_visits for child in self.node.children.values()])
         actions = np.array(list(self.node.children.keys()))
@@ -217,6 +212,12 @@ class MCTS:
         self.node = self.node.children[action]
 
         self.print_stats()
+        if self.visualization_dir:
+            self.visualize_tree(self.root, self.step_counter)
+            self.step_counter += 1
+        if True: # 清理不在路径上的节点
+            self.node.parent = None
+            self.root = self.node
         return action, probs
 
 def main():
