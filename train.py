@@ -191,7 +191,7 @@ def main():
     c_puct = 1.0                               # MCTS的c_puct参数
     temperature = 1.0                          # MCTS的temperature参数
     num_iterations = 1000                      # 迭代次数, 包含Self-play，训练，保存检查点
-    memory_capacity = num_episodes * 2000      # memory的容量
+    memory_capacity = num_episodes * 10000     # memory的容量
     num_batches = 100                          # 每次迭代从memory中取数据进行训练的次数
     batch_size = 512                           # 每次训练从memory中取batch size的数据进行训练
     learning_rate = 0.002                      # 学习率
