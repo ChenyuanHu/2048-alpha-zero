@@ -1,5 +1,2 @@
 __pycache__/
-*.log
-checkpoints/
-*.pt
 .DS_Store
