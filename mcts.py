@@ -1,5 +1,6 @@
 import numpy as np
 import math
+import time
 from game_2048 import Game2048
 import torch
 import os
@@ -224,15 +225,15 @@ def main():
     from neural_network import AlphaZeroNet
     
     model = AlphaZeroNet()
-    if torch.cuda.is_available():
-        model = model.cuda()
+    # device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    device = torch.device('cpu')
+    model = model.to(device)
 
     # 加载检查点（如果存在）
     if os.path.exists('checkpoints/checkpoint_latest.pt'):
-        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         checkpoint = torch.load('checkpoints/checkpoint_latest.pt', weights_only=True, map_location=device)
         model.load_state_dict(checkpoint['model_state_dict'])
-        print("Model loaded from checkpoint")
+        print(f"Model loaded from checkpoint and moved to {device}")
     
     game = Game2048()
     mcts = MCTS(model, num_simulations=4000, c_puct=1.0, tile_action_size=2)
@@ -240,7 +241,9 @@ def main():
     print(f"\nCurrent board:\n{game.board}")
     print(f"Current score: {game.get_score()}")
     while not game.is_game_over():
+        time_start = time.time()
         action, _ = mcts.get_action_probs(game, temperature=0.1)
+        print(f"time: {time.time() - time_start:.2f}s")
         if game.is_player_turn:
             # 移动方向玩家的回合
             game.move(action)

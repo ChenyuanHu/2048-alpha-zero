@@ -213,7 +213,8 @@ def main():
                  f"weight_decay: {weight_decay}")
 
     # 设置设备和性能优化
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = torch.device('cpu')
     if device.type == 'cuda':
         # 启用自动混合精度训练
         scaler = torch.amp.GradScaler('cuda')

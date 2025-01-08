@@ -68,7 +68,6 @@ class AlphaZeroNet(nn.Module):
         self.eval()
         with torch.no_grad():
             state_tensor = torch.FloatTensor(state).unsqueeze(0)
-            if torch.cuda.is_available():
-                state_tensor = state_tensor.cuda()
+            state_tensor = state_tensor.to(next(self.parameters()).device)
             policy, value = self(state_tensor)
             return policy.cpu().numpy()[0], value.cpu().numpy()[0][0] 
