@@ -13,6 +13,7 @@ import signal
 import time
 from neural_network import AlphaZeroNet
 from mcts import MCTS
+from mcts import normalize_score
 from game_2048 import Game2048
 
 # 全局变量用于控制训练终止
@@ -106,7 +107,7 @@ def play_game_worker(model_state_dict, device, num_simulations, c_puct, temperat
                 logging.info(f"worker {worker_id}, put tile, time: {time.time() - time_start:.2f}s")
         
         final_score = game.get_score()
-        normalized_score = final_score / 20000
+        normalized_score = normalize_score(final_score)
         values = [normalized_score] * len(states)
         
         return states, policies, values, final_score

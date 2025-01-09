@@ -8,7 +8,7 @@ import graphviz
 import logging
 
 def normalize_score(score):
-    return score / 2000000
+    return score / 70000
 
 class MCTSNode:
     def __init__(self, game_state, parent, parent_action, model, tile_action_size=2):
