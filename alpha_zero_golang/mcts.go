@@ -6,7 +6,7 @@ import (
 )
 
 const (
-	normalizeScoreFactor = 70000.0
+	normalizeScoreFactor = 4000000.0
 )
 
 func normalizeScore(score int) float64 {
