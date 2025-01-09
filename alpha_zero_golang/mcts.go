@@ -13,9 +13,9 @@ func normalizeScore(score int) float64 {
 	return float64(score) / normalizeScoreFactor
 }
 
-// Model 接口定义了神经网络模型需要实现的方法
+// Model 定义了神经网络模型的接口
 type Model interface {
-	Predict([4][4]int) ([]float64, float64)
+	Predict(board [4][4]int) ([]float64, float64)
 }
 
 // MCTSNode represents a node in the Monte Carlo Tree Search
