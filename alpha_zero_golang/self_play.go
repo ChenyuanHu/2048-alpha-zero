@@ -102,8 +102,9 @@ func selfPlay(model Model, numSimulations int, cPuct float64, tileActionSize int
 	for !game.IsGameOver() {
 		if game.IsPlayerTurn() {
 			state := game.GetBoard()
-			fmt.Println("state", state)
+			start := time.Now()
 			action, probs := mcts.GetActionProbs(game, 1.0)
+			fmt.Println("state", state, "action", action, "probs", probs, "time", time.Since(start))
 
 			// 记录状态和策略
 			memory.States = append(memory.States, state)
@@ -141,7 +142,7 @@ func main() {
 	// 配置参数
 	serverURL := "http://127.0.0.1:5000"
 	numGames := 1
-	numSimulations := 800
+	numSimulations := 4000
 	cPuct := 1.0
 	tileActionSize := 2
 
