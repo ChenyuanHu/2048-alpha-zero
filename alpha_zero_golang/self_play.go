@@ -56,30 +56,26 @@ func (m *HTTPModel) Predict(board [4][4]int) ([]float64, float64) {
 	reqData := PredictRequest{Board: boardSlice}
 	jsonData, err := json.Marshal(reqData)
 	if err != nil {
-		log.Printf("Error marshaling request: %v", err)
-		return make([]float64, 4), 0.0
+		log.Fatalf("Error marshaling request: %v", err)
 	}
 
 	// 发送HTTP请求
 	resp, err := m.client.Post(m.serverURL+"/predict", "application/json", bytes.NewBuffer(jsonData))
 	if err != nil {
-		log.Printf("Error making request: %v", err)
-		return make([]float64, 4), 0.0
+		log.Fatalf("Error making request: %v", err)
 	}
 	defer resp.Body.Close()
 
 	// 读取响应
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		log.Printf("Error reading response: %v", err)
-		return make([]float64, 4), 0.0
+		log.Fatalf("Error reading response: %v", err)
 	}
 
 	// 解析响应
 	var predictResp PredictResponse
 	if err := json.Unmarshal(body, &predictResp); err != nil {
-		log.Printf("Error unmarshaling response: %v", err)
-		return make([]float64, 4), 0.0
+		log.Fatalf("Error unmarshaling response: %v, error: %v", body, err)
 	}
 
 	return predictResp.Policy, predictResp.Value
@@ -112,15 +108,13 @@ func selfPlay(model Model, numSimulations int, cPuct float64, tileActionSize int
 
 			ok := game.Move(action)
 			if !ok {
-				log.Printf("Invalid move: %d", action)
-				break
+				log.Fatalf("Invalid move: %d", action)
 			}
 		} else {
 			action, _ := mcts.GetActionProbs(game, 1.0)
 			ok := game.PlaceTileID(action)
 			if !ok {
-				log.Printf("Invalid tile placement: %d", action)
-				break
+				log.Fatalf("Invalid tile placement: %d", action)
 			}
 		}
 	}
@@ -139,6 +133,13 @@ func selfPlay(model Model, numSimulations int, cPuct float64, tileActionSize int
 }
 
 func main() {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("Recovered from panic: %v", r)
+			os.Exit(1)
+		}
+	}()
+
 	// 配置参数
 	serverURL := "http://127.0.0.1:5000"
 	numGames := 1
