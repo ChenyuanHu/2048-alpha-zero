@@ -70,13 +70,14 @@ func main() {
 
 	// 配置参数
 	numGames := 1
-	numSimulations := 1000000
+	numSimulations := 4000
 	cPuct := 1.0
 	tileActionSize := 2
 
 	// 创建HTTP模型客户端
 	// model := NewHTTPModel()
-	model := NewRandomModel()
+	// model := NewRandomModel()
+	model := NewHumanValueModel()
 
 	// 创建保存游戏记录的目录
 	timestamp := time.Now().Format("20060102_150405")
