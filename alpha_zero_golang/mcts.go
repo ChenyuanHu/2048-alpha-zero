@@ -15,7 +15,7 @@ func normalizeScore(score int) float64 {
 
 // Model 定义了神经网络模型的接口
 type Model interface {
-	Predict(board [4][4]int) ([]float64, float64)
+	Predict(gameState *Game2048) ([]float64, float64)
 }
 
 // MCTSNode represents a node in the Monte Carlo Tree Search
@@ -61,7 +61,7 @@ func NewMCTSNode(gameState *Game2048, parent *MCTSNode, parentAction int, model 
 	// 模型预测的策略和价值
 	if node.gameState.IsPlayerTurn() {
 		// 移动方向玩家
-		policy, value := node.model.Predict(node.gameState.GetBoard())
+		policy, value := node.model.Predict(node.gameState)
 		node.value = value
 		node.policy = make([]float64, 4)
 		sum := 0.0

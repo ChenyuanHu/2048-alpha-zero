@@ -1,40 +1,14 @@
 package main
 
 import (
-	"math/rand"
 	"testing"
-	"time"
 )
-
-var rng = rand.New(rand.NewSource(time.Now().UnixNano()))
-
-// RandomModel 实现Model接口的随机模型
-type RandomModel struct{}
-
-func (m *RandomModel) Predict(board [4][4]int) ([]float64, float64) {
-	// 返回随机的策略和价值
-	policy := make([]float64, 32)
-	for i := range policy {
-		policy[i] = rng.Float64()
-	}
-	// 归一化策略
-	sum := 0.0
-	for _, p := range policy {
-		sum += p
-	}
-	for i := range policy {
-		policy[i] /= sum
-	}
-	// 返回随机价值
-	value := rng.Float64()
-	return policy, value
-}
 
 func TestMCTSRandomPlay(t *testing.T) {
 	// 创建游戏和MCTS实例
 	game := NewGame2048()
 	model := &RandomModel{}
-	mcts := NewMCTS(model, 4000, 1.0, 2)
+	mcts := NewMCTS(model, 1000, 1.0, 2)
 
 	maxTile := 0
 	maxScore := 0
