@@ -214,9 +214,11 @@ func (m *MCTS) GetActionProbs(gameState *Game2048, temperature float64) (int, []
 			// 计算未尝试动作的概率
 			untriedProbs := make([]float64, actionSize)
 			sum := 0.0
+			count := 0
 			for _, action := range node.untriedActions {
 				untriedProbs[action] = node.policy[action]
 				sum += node.policy[action]
+				count++
 			}
 
 			// 归一化概率
@@ -225,8 +227,8 @@ func (m *MCTS) GetActionProbs(gameState *Game2048, temperature float64) (int, []
 					untriedProbs[i] /= sum
 				}
 			} else {
-				for i := range untriedProbs {
-					untriedProbs[i] = 1.0 / float64(actionSize)
+				for _, v := range node.untriedActions {
+					untriedProbs[v] = 1.0 / float64(count)
 				}
 			}
 
@@ -236,9 +238,15 @@ func (m *MCTS) GetActionProbs(gameState *Game2048, temperature float64) (int, []
 			// 执行动作并扩展节点
 			nextState := node.gameState.Clone()
 			if node.gameState.IsPlayerTurn() {
-				nextState.Move(action)
+				ok := nextState.Move(action)
+				if !ok {
+					panic("invalid move")
+				}
 			} else {
-				nextState.PlaceTileID(action)
+				ok := nextState.PlaceTileID(action)
+				if !ok {
+					panic("invalid tile placement")
+				}
 			}
 			node = node.Expand(action, nextState, node.policy[action])
 		}
@@ -296,5 +304,5 @@ func weightedRandomChoice(probs []float64) int {
 			return i
 		}
 	}
-	return len(probs) - 1
+	panic("no action selected")
 }
